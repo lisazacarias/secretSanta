@@ -1,41 +1,51 @@
+from __future__ import print_function
 from random import shuffle
 import smtplib
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEText import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import csv
 from getpass import getpass
+
+nameCol = "Name"
+emailCol = "Email"
+suggestionCol = "Any special requests/suggestions/factoids/jokes for your Santa?"
 
 name2email = {}
 name2request = {}
 names = []
 
-with open("secretSantaInterest2018.tsv") as f:
-    tsvreader = csv.reader(f, delimiter='\t')
+with open("test.csv") as f:
+    csvReader = csv.reader(f)
+    header = next(csvReader)
 
-    for row in tsvreader:
-        names.append(row[3])
-        name2email[row[3]] = row[2]
-        name2request[row[3]] = row[5]
+    nameColIdx = header.index(nameCol)
+    emailColIdx = header.index(emailCol)
+    suggestionColIdx = header.index(suggestionCol)
+
+    for row in csvReader:
+        names.append(row[nameColIdx])
+        name2email[row[nameColIdx]] = row[emailColIdx]
+        name2request[row[nameColIdx]] = row[suggestionColIdx]
 
 shuffle(names)
 
 assignment = {}
 
-for i in xrange(0, len(names)):
-   assignment[names[i]] = names[(i+1) % len(names)]
+for i in range(0, len(names)):
+    assignment[names[i]] = names[(i + 1) % len(names)]
 
 server = smtplib.SMTP('smtp.gmail.com', 587)
 server.ehlo()
 server.starttls()
-username = raw_input("gmail username: ")
+username = input("gmail username: ")
 try:
     server.login(username, getpass(prompt="gmail password: "))
 except smtplib.SMTPAuthenticationError:
-    print "Gmail authentication error. Please try again."
+    print("Gmail authentication error. Please try again.")
 
 fromaddr = username + "@gmail.com"
 
-for giver, receiver in assignment.iteritems():
+for giver, receiver in assignment.items():
 
     toaddr = name2email[giver]
     msg = MIMEMultipart()
@@ -45,25 +55,25 @@ for giver, receiver in assignment.iteritems():
 
     body = ("Congratulations " + giver + ", you are " + receiver
             + "'s Secret Santa! If your recipient has a message for you, "
-              "it'll be listed below. Gentle reminder that it's a $25 limit, "
+              "it'll be listed below. It's a $25 limit, "
               "but that is by no means the target! The best gifts are often"
               " inexpensive yet creative(: \n"
-              "\nAt some point next week, a box will magically appear in "
-              "the touchdown room for you to deposit your gift and pick up your "
+              "\nAt some point this week, a box will magically appear in "
+              "the ACR for you to deposit your gift and pick up your "
               "own! You can open yours whenever you'd like, but for anyone who'd"
               " like to have a more formal \'opening party\', we're planning on"
-              " having a get together at 4:30PM on Tuesday Dec. 18th in the "
-              "ACR! There's also talk of turning this into a big holiday "
-              "potluck, so stay posted! Word has it that Matt has volunteered "
-              "his world famous mac n cheese, so if that doesn't sway you, "
-              "I don't know what will.\n"
-              "\nHappy shopping!\n"
-            + "\nMessage from your Santee: " + name2request[receiver])
+              " having a holiday potluck at 3:30PM on Wednesday Dec. 18th in the "
+              "ACR.\n"
+              "\nHappy shopping/crafting! "
+              "And remember that I don't know any of the assignments!"
+              " I wrote a script so that I could be as suprised as everyone else(:\n"
+            + ("\nSpecial requests/suggestions/factoids/jokes from your santee: "
+               + name2request[receiver]) if name2request[receiver] else "")
 
     msg.attach(MIMEText(body, 'plain'))
 
     try:
         server.sendmail(fromaddr, toaddr, msg.as_string())
-    except smtplib.SMTPSenderRefused, SMTPServerDisconnected:
-        print "Sender refused or server disconnected - might be two factor " \
-              "authentication. Try again with app password?"
+    except smtplib.SMTPSenderRefused as SMTPServerDisconnected:
+        print("Sender refused or server disconnected - might be two factor "
+              "authentication. Try again with app password?")
